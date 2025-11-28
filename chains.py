@@ -54,4 +54,4 @@ if __name__ == "__main__":
     )
     
     res = chain.invoke(input={"messages": [human_message]})
-    print(res)
+    print(res[0].answer)
