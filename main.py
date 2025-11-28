@@ -2,12 +2,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain.chat_models import init_chat_model
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
-from langchain.chat_models import init_chat_model
-
-
+from langchain_google_genai import ChatGoogleGenerativeAI
 
 # model = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0)
 # model = init_chat_model("google_genai:gemini-2.5-flash")
@@ -15,9 +13,9 @@ from langchain.chat_models import init_chat_model
 configurable_model = init_chat_model(temperature=0)
 
 response = configurable_model.invoke(
-        "what's your name",
-        config={"configurable": {"model": "google_genai:gemini-2.5-flash"}},
-    )
+    "what's your name",
+    config={"configurable": {"model": "google_genai:gemini-2.5-flash"}},
+)
 
 output_parser = StrOutputParser()
 
