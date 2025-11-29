@@ -1,28 +1,42 @@
+from typing import List
+
 from dotenv import load_dotenv
 
 load_dotenv()
+from langchain_core.messages import BaseMessage, ToolMessage
+from langgraph.graph import END, MessageGraph
 
-from langchain.chat_models import init_chat_model
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_google_genai import ChatGoogleGenerativeAI
+from chains import first_responder, revisor
+from tool_executor import execute_tools
 
-# model = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0)
-# model = init_chat_model("google_genai:gemini-2.5-flash")
+MAX_ITERATIONS = 2
+builder = MessageGraph()
+builder.add_node("draft", first_responder)
+builder.add_node("execute_tools", execute_tools)
+builder.add_node("revise", revisor)
+builder.add_edge("draft", "execute_tools")
+builder.add_edge("execute_tools", "revise")
 
-configurable_model = init_chat_model(temperature=0)
 
-response = configurable_model.invoke(
-    "what's your name",
-    config={"configurable": {"model": "google_genai:gemini-2.5-flash"}},
+def event_loop(state: List[BaseMessage]) -> str:
+    count_tool_visits = sum(isinstance(item, ToolMessage) for item in state)
+    num_iterations = count_tool_visits
+    if num_iterations > MAX_ITERATIONS:
+        return END
+    return "execute_tools"
+
+
+builder.add_conditional_edges("revise", event_loop, {END:END, "execute_tools":"execute_tools"})
+builder.set_entry_point("draft")
+graph = builder.compile()
+
+# print(graph.get_graph().draw_mermaid())
+# print(graph.get_graph().draw_ascii())
+
+graph.get_graph().draw_mermaid_png(output_file_path="graph.png")
+
+res = graph.invoke(
+    "Write about AI-Powered SOC / autonomous soc  problem domain, list startups that do that and raised capital."
 )
-
-output_parser = StrOutputParser()
-
-# prompt = ChatPromptTemplate.from_messages([
-#     ("system", "do not include any markdown, explanation or formatting, just return the answer in a plain text."),
-#     ("user", "{query}")
-# ])
-# chain = prompt | configurable_model | output_parser
-# response = chain.invoke("What is the capital of France?")
-print(response)
+print(res[-1].tool_calls[0]["args"]["answer"])
+print(res)

@@ -33,13 +33,10 @@ actor_prompt_template = ChatPromptTemplate.from_messages(
     time=lambda: datetime.datetime.now().isoformat(),
 )
 
-first_responder_prompt_template = actor_prompt_template.partial(
+first_responder = actor_prompt_template.partial(
     first_instruction="Provide a detailed ~250 word answer."
-)
-
-first_responder_chain = first_responder_prompt_template | llm.bind_tools(
-    tools=[AnswerQuestion], tool_choice="AnswerQuestion"
-)
+) | llm.bind_tools(tools=[AnswerQuestion], tool_choice="AnswerQuestion")
+validator = PydanticToolsParser(tools=[AnswerQuestion])
 
 revise_instructions = """Revise your previous answer using the new information.
     - You should use the previous critique to add important information to your answer.
@@ -53,18 +50,3 @@ revise_instructions = """Revise your previous answer using the new information.
 revisor = actor_prompt_template.partial(
     first_instruction=revise_instructions
 ) | llm.bind_tools(tools=[ReviseAnswer], tool_choice="ReviseAnswer")
-
-if __name__ == "__main__":
-    human_message = HumanMessage(
-        content="Write about AI-powered SOC / autonomous soc prompblem domain,"
-        " list startups that do that and raised capital."
-    )
-
-    chain = (
-        first_responder_prompt_template
-        | llm.bind_tools(tools=[AnswerQuestion], tool_choice="AnswerQuestion")
-        | parser_pydantic
-    )
-
-    res = chain.invoke(input={"messages": [human_message]})
-    print(res[0].answer)
