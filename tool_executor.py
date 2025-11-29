@@ -1,14 +1,36 @@
 from dotenv import load_dotenv
 from langchain_core.messages import BaseMessage, ToolMessage, HumanMessage, AIMessage
+from langchain_tavily import TavilySearch
 from typing import List
 
+from chains import parser
 from schemas import AnswerQuestion, Reflection
 
 load_dotenv()
 
+tavily_tool = TavilySearch(max_results=5)
+
 def execute_tools(state: List[BaseMessage]) -> List[ToolMessage]:
     tool_invocation: AIMessage = state[-1]
-    pass
+    parsed_tool_calls = parser.invoke(tool_invocation)
+    
+    tool_messages = []
+    
+    for parsed_call in parsed_tool_calls:
+        call_id = parsed_call["id"]
+        search_queries = parsed_call["args"]["search_queries"]
+        results = tavily_tool.batch([{"query": query} for query in search_queries])
+        
+        # Create ToolMessage for each result
+        for result in results:
+            tool_messages.append(
+                ToolMessage(
+                    content=str(result),
+                    tool_call_id=call_id,
+                )
+            )
+    
+    return tool_messages
 
 if __name__ == "__main__":
     print("Tool Executor Enter")
