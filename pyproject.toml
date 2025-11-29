@@ -1,3 +1,21 @@
+[project]
+name = "reflexion-agent"
+version = "0.1.0"
+description = "An intelligent research assistant that generates high-quality, well-researched answers through self-reflection and iterative improvement"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "python-dotenv",
+    "langchain",
+    "langchain-google-genai>=3.2.0",
+    "langgraph",
+    "langchain-core>=1.1.0",
+    "langchain-tavily>=0.2.13",
+    "langgraph-prebuilt>=1.0.5",
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+]
+
 [tool.poetry]
 name = "reflexion-agent"
 version = "0.1.0"
@@ -23,6 +41,8 @@ langchain-tavily = "^0.2.13"
 langgraph-prebuilt = "^1.0.5"
 pytest = "^9.0.1"
 pytest-mock = "^3.14.0"
+fastapi = "^0.115.0"
+uvicorn = {extras = ["standard"], version = "^0.32.0"}
 
 [build-system]
 requires = ["poetry-core"]

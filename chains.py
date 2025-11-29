@@ -6,8 +6,7 @@ load_dotenv()
 
 from langchain.chat_models import init_chat_model
 from langchain_core.messages import HumanMessage
-from langchain_core.output_parsers import (JsonOutputToolsParser,
-                                           PydanticToolsParser)
+from langchain_core.output_parsers import JsonOutputToolsParser, PydanticToolsParser
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 from schemas import AnswerQuestion, ReviseAnswer

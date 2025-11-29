@@ -10,15 +10,10 @@ from chains import first_responder, revisor
 from tool_executor import execute_tools
 
 MAX_ITERATIONS = 2
-builder = MessageGraph()
-builder.add_node("draft", first_responder)
-builder.add_node("execute_tools", execute_tools)
-builder.add_node("revise", revisor)
-builder.add_edge("draft", "execute_tools")
-builder.add_edge("execute_tools", "revise")
 
 
 def event_loop(state: List[BaseMessage]) -> str:
+    """Conditional edge function to control iteration loop."""
     count_tool_visits = sum(isinstance(item, ToolMessage) for item in state)
     num_iterations = count_tool_visits
     if num_iterations > MAX_ITERATIONS:
@@ -26,19 +21,27 @@ def event_loop(state: List[BaseMessage]) -> str:
     return "execute_tools"
 
 
-builder.add_conditional_edges(
-    "revise", event_loop, {END: END, "execute_tools": "execute_tools"}
-)
-builder.set_entry_point("draft")
-graph = builder.compile()
+def create_graph():
+    """Create and compile the reflexion agent graph."""
+    builder = MessageGraph()
+    builder.add_node("draft", first_responder)
+    builder.add_node("execute_tools", execute_tools)
+    builder.add_node("revise", revisor)
+    builder.add_edge("draft", "execute_tools")
+    builder.add_edge("execute_tools", "revise")
+    builder.add_conditional_edges(
+        "revise", event_loop, {END: END, "execute_tools": "execute_tools"}
+    )
+    builder.set_entry_point("draft")
+    return builder.compile()
 
-# print(graph.get_graph().draw_mermaid())
-# print(graph.get_graph().draw_ascii())
 
-graph.get_graph().draw_mermaid_png(output_file_path="graph.png")
+# Create the graph instance
+graph = create_graph()
 
-res = graph.invoke(
-    "Write about AI-Powered SOC / autonomous soc  problem domain, list startups that do that and raised capital."
-)
-print(res[-1].tool_calls[0]["args"]["answer"])
-print(res)
+if __name__ == "__main__":
+    res = graph.invoke(
+        "Write about AI-Powered SOC / autonomous soc  problem domain, list startups that do that and raised capital."
+    )
+    print(res[-1].tool_calls[0]["args"]["answer"])
+    print(res)

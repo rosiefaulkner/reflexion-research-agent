@@ -146,6 +146,7 @@ venv.bak/
 dmypy.json
 .env
 poetry.lock
+.vscode
 
 # Pyre type checker
 .pyre/

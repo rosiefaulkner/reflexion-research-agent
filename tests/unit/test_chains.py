@@ -5,8 +5,13 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 
-from chains import (actor_prompt_template, first_responder, parser,
-                    parser_pydantic, revisor)
+from chains import (
+    actor_prompt_template,
+    first_responder,
+    parser,
+    parser_pydantic,
+    revisor,
+)
 
 
 class TestChains:

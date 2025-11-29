@@ -1,8 +1,7 @@
 from typing import List
 
 from dotenv import load_dotenv
-from langchain_core.messages import (AIMessage, BaseMessage, HumanMessage,
-                                     ToolMessage)
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
 from langchain_tavily import TavilySearch
 
 from chains import parser
