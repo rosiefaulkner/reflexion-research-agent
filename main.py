@@ -3,7 +3,7 @@ from typing import List
 from dotenv import load_dotenv
 
 load_dotenv()
-from langchain_core.messages import BaseMessage, ToolMessage
+from langchain_core.messages import AIMessage, BaseMessage
 from langgraph.graph import END, MessageGraph
 
 from chains import first_responder, revisor
@@ -12,11 +12,15 @@ from tool_executor import execute_tools
 MAX_ITERATIONS = 2
 
 
+def count_revisions(state: List[BaseMessage]) -> int:
+    """Count completed revision rounds (the draft is not a revision)."""
+    tool_turns = sum(isinstance(m, AIMessage) and bool(m.tool_calls) for m in state)
+    return max(tool_turns - 1, 0)
+
+
 def event_loop(state: List[BaseMessage]) -> str:
-    """Conditional edge function to control iteration loop."""
-    count_tool_visits = sum(isinstance(item, ToolMessage) for item in state)
-    num_iterations = count_tool_visits
-    if num_iterations > MAX_ITERATIONS:
+    """Stop after MAX_ITERATIONS revisions, otherwise search again."""
+    if count_revisions(state) >= MAX_ITERATIONS:
         return END
     return "execute_tools"
 
@@ -36,7 +40,6 @@ def create_graph():
     return builder.compile()
 
 
-# Create the graph instance
 graph = create_graph()
 
 if __name__ == "__main__":
