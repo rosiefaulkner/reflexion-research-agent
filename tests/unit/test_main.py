@@ -1,80 +1,77 @@
-"""Unit tests for main.py."""
+"""Unit tests for main.py: revision-based loop control."""
 
-import pytest
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langgraph.graph import END
 
-from main import MAX_ITERATIONS, event_loop
+from main import MAX_ITERATIONS, count_revisions, event_loop
+
+_call_counter = 0
+
+
+def _ai_turn(tool_name="ReviseAnswer"):
+    """AI message with a tool call, like the draft or a revise produces."""
+    global _call_counter
+    _call_counter += 1
+    return AIMessage(
+        content="",
+        tool_calls=[{"name": tool_name, "args": {}, "id": f"call_{_call_counter}"}],
+    )
+
+
+def _tool_results(n):
+    """One ToolMessage per search query."""
+    return [ToolMessage(content=f"result {i}", tool_call_id="call_x") for i in range(n)]
+
+
+class TestCountRevisions:
+    def test_empty_state_has_zero_revisions(self):
+        assert count_revisions([]) == 0
+
+    def test_draft_only_has_zero_revisions(self):
+        state = [HumanMessage(content="q"), _ai_turn("AnswerQuestion")]
+        assert count_revisions(state) == 0
+
+    def test_one_revise_is_one_revision(self):
+        state = [
+            HumanMessage(content="q"),
+            _ai_turn("AnswerQuestion"),
+            *_tool_results(3),
+            _ai_turn(),
+        ]
+        assert count_revisions(state) == 1
+
+    def test_tool_messages_are_not_counted(self):
+        state = [
+            HumanMessage(content="q"),
+            _ai_turn("AnswerQuestion"),
+            *_tool_results(10),
+        ]
+        assert count_revisions(state) == 0
 
 
 class TestEventLoop:
-    """Tests for event_loop conditional edge function."""
-
-    def test_event_loop_returns_execute_tools_when_below_limit(self):
-        """Test that event_loop returns 'execute_tools' when below MAX_ITERATIONS."""
-        messages = [
-            HumanMessage(content="Test"),
-            AIMessage(content="Response"),
-            ToolMessage(content="Tool result 1", tool_call_id="call_1"),
+    def test_continues_after_first_revision(self):
+        state = [
+            HumanMessage(content="q"),
+            _ai_turn("AnswerQuestion"),
+            *_tool_results(3),
+            _ai_turn(),
         ]
+        assert event_loop(state) == "execute_tools"
 
-        result = event_loop(messages)
-        assert result == "execute_tools"
+    def test_ends_after_max_iterations_revisions(self):
+        state = [HumanMessage(content="q"), _ai_turn("AnswerQuestion")]
+        for _ in range(MAX_ITERATIONS):
+            state += _tool_results(3) + [_ai_turn()]
+        assert event_loop(state) == END
 
-    def test_event_loop_returns_execute_tools_when_at_limit(self):
-        """Test that event_loop returns 'execute_tools' when exactly at MAX_ITERATIONS (uses > not >=)."""
-        messages = [
-            HumanMessage(content="Test"),
-            AIMessage(content="Response"),
-            ToolMessage(content="Tool result 1", tool_call_id="call_1"),
-            ToolMessage(content="Tool result 2", tool_call_id="call_2"),
-        ]
+    def test_loop_length_does_not_depend_on_query_count(self):
+        """Regression: the old code ended after one revision when each round had 3 queries."""
+        state = [HumanMessage(content="q"), _ai_turn("AnswerQuestion")]
+        state += _tool_results(3) + [_ai_turn()]
+        assert event_loop(state) == "execute_tools"
+        state += _tool_results(1) + [_ai_turn()]
+        assert event_loop(state) == END
 
-        result = event_loop(messages)
-        # At exactly MAX_ITERATIONS (2), it still returns execute_tools (only > MAX_ITERATIONS returns END)
-        assert result == "execute_tools"
-
-    def test_event_loop_returns_end_when_above_limit(self):
-        """Test that event_loop returns END when above MAX_ITERATIONS."""
-        messages = [
-            HumanMessage(content="Test"),
-            AIMessage(content="Response"),
-            ToolMessage(content="Tool result 1", tool_call_id="call_1"),
-            ToolMessage(content="Tool result 2", tool_call_id="call_2"),
-            ToolMessage(content="Tool result 3", tool_call_id="call_3"),
-        ]
-
-        result = event_loop(messages)
-        assert result == END
-
-    def test_event_loop_counts_only_tool_messages(self):
-        """Test that event_loop only counts ToolMessage instances."""
-        messages = [
-            HumanMessage(content="Test"),
-            AIMessage(content="Response"),
-            AIMessage(content="Another response"),
-            ToolMessage(content="Tool result", tool_call_id="call_1"),
-        ]
-
-        result = event_loop(messages)
-        # Should return execute_tools since only 1 ToolMessage
-        assert result == "execute_tools"
-
-    def test_event_loop_with_no_tool_messages(self):
-        """Test event_loop with no ToolMessages."""
-        messages = [HumanMessage(content="Test"), AIMessage(content="Response")]
-
-        result = event_loop(messages)
-        # 0 tool messages, so should return execute_tools
-        assert result == "execute_tools"
-
-    def test_event_loop_with_empty_messages(self):
-        """Test event_loop with empty message list."""
-        messages = []
-
-        result = event_loop(messages)
-        assert result == "execute_tools"
-
-    def test_max_iterations_constant(self):
-        """Test that MAX_ITERATIONS is set correctly."""
+    def test_max_iterations_is_two(self):
         assert MAX_ITERATIONS == 2
